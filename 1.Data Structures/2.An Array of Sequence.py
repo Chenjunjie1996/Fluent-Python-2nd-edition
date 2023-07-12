@@ -99,3 +99,44 @@ def evaluate(exp, env):
             raise SyntaxError
 
 
+# Slicing
+# list.sort() and sorted()
+
+"""Array
+That is nearly 60 times faster than reading the numbers from a text file,
+binary file with 10 million doubles is 80,000,000 bytes (8 bytes per double, zero overhead),
+while the text file has 181,515,739 bytes for the same data.
+"""
+from array import array
+from random import random
+floats = array('d', (random() for i in range(10**7)))
+print(floats[-1])
+
+fp = open("floats.bin", "wb")
+floats.tofile((fp))
+fp.close()
+
+fp = open("floats.bin", "rb")
+floats2 = array('d')
+floats2.fromfile(fp, 10**7)
+fp.close()
+print(floats2[-1])
+print(floats == floats2)
+
+# Numpy
+import numpy as np
+a = np.arange(12)
+print(f"{a}\t{type(a)}\t{a.shape}")
+a.shape = (3, 4)
+print(a)
+print(a[:, 1])
+print(a.transpose())
+
+# Dques and Other Queues: FIFO
+from collections import deque
+dq = deque(range(10), maxlen=10)
+print(dq)
+dq.rotate(3)
+dq.appendleft(-1)
+dq.extend([11, 12, 13])
+dq.extendleft([10, 20, 30, 40])
