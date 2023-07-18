@@ -76,3 +76,109 @@ class Coordinate(typing.NamedTuple):
     lat: float
     lon: float
     reference: str = 'WGS84'
+
+print(Coordinate.__annotations__)
+
+class DemoNTClass(typing.NamedTuple):
+    a: int
+    b: float = 1.1
+    c = "spam"
+print(DemoNTClass.__annotations__)
+print(DemoNTClass.__doc__)
+print(f"{DemoNTClass.a}\t{DemoNTClass.b}\t{DemoNTClass.c}")
+
+nt = DemoNTClass(8)
+print(f"{nt.a}\t{nt.b}\t{nt.c}")
+
+# Inspecting a class decorated with dataclass
+# DemoDataClass instances are mutable
+@dataclass
+class DemoDataClass:
+    a: int
+    b: float = 1.1
+    c = "spam"
+dc = DemoDataClass(9)
+dc.a = 11.1
+dc.z = 12
+
+from dataclasses import field
+@dataclass
+class ClubMember:
+    name: str
+    guests: list = field(default_factory=list)
+
+# more precise
+@dataclass
+class ClubMember:
+    name: str
+    guests: list[str] = field(default_factory=list)
+cc = ClubMember('a', ['a'])
+print(cc)
+
+@dataclass
+class ClubMember:
+    name: str
+    guests: list = field(default_factory=list)
+    athlete: bool = field(default=False, repr=False)
+cc = ClubMember('a', ['a'], False)
+print(cc)
+
+# Post-init Processing
+"""
+Common use cases for __post_init__ are validation and computing
+field values based on other fields.
+"""
+@dataclass
+class HackerClubMember(ClubMember):
+    all_handles = set()
+    handle: str = ''
+    def __post_init__(self):
+        cls = self.__class__
+        if self.handle == '':
+            self.handle = self.name.split()[0]
+        if self.handle in cls.all_handles:
+            msg = f"hanle {self.handle!r} already exists."
+            raise ValueError(msg)
+        cls.all_handles.add(self.handle)
+
+from dataclasses import dataclass, field, fields
+from typing import Optional
+from enum import Enum, auto
+from datetime import date
+
+class ResourceType(Enum):
+    BOOK = auto()
+    EBOOK = auto()
+    VIDEO = auto()
+
+@dataclass
+class Resource:
+    """Media resource description."""
+    identifier: str
+    title: str = "<untitled>"
+    creators: list[str] = field(default_factory=list)
+    date: Optional[date] = None
+    type: ResourceType = ResourceType.BOOK
+    description: str = ''
+    language: str = ''
+    subjects: list[str] = field(default_factory=list)
+
+    def __repr__(self):
+        cls = self.__class__
+        cls_name = cls.__name__
+        indent = ' ' * 4
+        res = [f"{cls_name}("]
+        for f in fields(cls):
+            value = getattr(self, f.name)
+            res.append(f"{indent}{f.name} = {value!r},")
+        res.append(')')
+        return '\n'.join(res)
+
+# instance
+book = Resource(
+    "978-0-13-475759-9", "Refactoring, 2nd Edition",
+    ['Martin Fowler', 'Kent Beck'], date(2018, 11, 19),
+    ResourceType.BOOK, "Improving the design of existing code",
+    "EN", ['computer programming', 'OOP']
+)
+print(book)
