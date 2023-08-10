@@ -7,8 +7,13 @@ Implementing a well-behaved decorator
 Powerful decorators in the standard library: @cache, @lru_cache, @singledispatch
 Implementing a parameterized decorator
 """
+from collections import abc
 import functools
 import time
+import html
+import numbers
+import decimal
+import fractions
 
 # Decorators 101
 """
@@ -248,3 +253,127 @@ def costly_function(a, b):
     pass
 
 # Single Dispatch Generic Functions
+@functools.singledispatch
+def htmlize(obj: object) -> str:
+    content = html.escape(repr(obj))
+    return f"<pre>{content}</pre>"
+
+@htmlize.register
+def _(text: str) -> str:
+    content = html.escape(text).replace('\n', "<br/>\n")
+    return f"<p>{content}</p>"
+
+@htmlize.register
+def _(seq: abc.Sequence) -> str:
+    inner = "</li>\n<li>".join(htmlize(item) for item in seq)
+    return "<ul>\n<li>" + inner + "</li>\n</ul>"
+
+@htmlize.register
+def _(n: numbers.Integral) -> str:
+    return f"<pre>{n} (0x{n:x})</pre>"
+
+@htmlize.register
+def _(n:bool) -> str:
+    return f"<pre>{n}</pre>"
+
+@htmlize.register(fractions.Fraction)
+def _(x) -> str:
+    frac = fractions.Fraction(x)
+    return f"<pre>{frac.numerator}/{frac.denominator}</pre>"
+
+@htmlize.register(decimal.Decimal)
+@htmlize.register(float)
+def _(x) -> str:
+    frac = fractions.Fraction(x).limit_denominator()
+    return f"<pre>{x} ({frac.numerator}/{frac.denominator})</pre>"
+
+
+# Parameterized Decorators
+registry = set()
+
+def register(active=True):
+    def decorate(func):
+        print("running register"
+              f"(active={active})->decorate({func})")
+        if active:
+            registry.add(func)
+        else:
+            registry.discard(func)
+        return func
+    return decorate
+
+@register(active=False)
+def f1():
+    print("running f1()")
+
+@register()
+def f2():
+    print("running f2()")
+
+def f3():
+    print("running f3()")
+
+print(registry)
+
+# use register as a regular function
+register()(f3)
+print(registry)
+register(active=False)(f2)
+print(registry)
+
+# The Parameterized Clock Decorator
+DEFAULT_FMT = "[{elapsed:0.8f}s] {name}({args}) -> {result}"
+
+def clock(fmt = DEFAULT_FMT):
+    def decorate(func):
+        def clocked(*_args):
+            t0 = time.perf_counter()
+            _result = func(*_args)
+            elapsed = time.perf_counter() - t0
+            name = func.__name__
+            args = ', '.join(repr(arg) for arg in _args)
+            result = repr(_result)
+            print(fmt.format(**locals())) # any local variable
+            return result
+        return clocked
+    return decorate
+
+@clock()
+def snooze(seconds):
+    time.sleep(seconds)
+
+for i in range(3):
+    snooze(.123)
+
+@clock("{name}: {elapsed}s")
+def snooze(seconds):
+    time.sleep(seconds)
+
+for i in range(3):
+    snooze(.123)
+
+@clock("{name}({args}) dt={elapsed:0.3f}s")
+def snooze(seconds):
+    time.sleep(seconds)
+
+for i in range(3):
+    snooze(.123)
+
+# A Class-Based Clock Decorator
+DEFAULT_FMT = "[{elapsed:0.8f}s] {name}({args}) -> {result}"
+
+class clock:
+    def __init__(self, fmt=DEFAULT_FMT):
+        self.fmt = fmt
+
+    def __call__(self, func):
+        def clocked(*_args):
+            t0 = time.perf_counter()
+            _result = func(*_args)
+            elapsed = time.perf_counter()
+            name = func.__name__
+            args = ', '.join(repr(arg) for arg in _args)
+            result = repr(_result)
+            print(self.fmt.format(**locals()))
+            return _result
+        return clocked
